@@ -25,18 +25,8 @@
 // HW properties
 #define HW_HAS_3_SHUNTS
 #define HW_HAS_PHASE_SHUNTS		//Comment out this when shunts are in low side of inverter
-#define HW_HAS_NO_CAN
-
-// Macros
-#define LED_GREEN_GPIO			GPIOB
-#define LED_GREEN_PIN			0
-#define LED_RED_GPIO			GPIOB
-#define LED_RED_PIN				1
-
-#define LED_GREEN_ON()			palSetPad(LED_GREEN_GPIO, LED_GREEN_PIN)
-#define LED_GREEN_OFF()			palClearPad(LED_GREEN_GPIO, LED_GREEN_PIN)
-#define LED_RED_ON()			palSetPad(LED_RED_GPIO, LED_RED_PIN)
-#define LED_RED_OFF()			palClearPad(LED_RED_GPIO, LED_RED_PIN)
+#define HW_HAS_PHASE_FILTERS
+//#define HW_HAS_NO_CAN
 
 #define HW_ADC_CHANNELS			12
 #define HW_ADC_INJ_CHANNELS		3
@@ -102,6 +92,14 @@
 #define HW_UART_RX_PORT			GPIOB
 #define HW_UART_RX_PIN			11
 
+//#define HW_UART_P_BAUD			115200
+//#define HW_UART_P_DEV			SD3
+//#define HW_UART_P_GPIO_AF		GPIO_AF_USART3
+//#define HW_UART_P_TX_PORT		GPIOB
+//#define HW_UART_P_TX_PIN		10
+//#define HW_UART_P_RX_PORT		GPIOB
+//#define HW_UART_P_RX_PIN		11
+
 // ICU Peripheral for servo decoding
 #define HW_USE_SERVO_TIM4
 #define HW_ICU_TIMER			TIM4
@@ -120,6 +118,16 @@
 #define HW_I2C_SCL_PIN			8
 #define HW_I2C_SDA_PORT			GPIOB
 #define HW_I2C_SDA_PIN			9
+
+// Phase filters
+#define PHASE_FILTER_GPIO		GPIOC
+#define PHASE_FILTER_PIN		9
+
+// LED
+#define LED_GREEN_GPIO			GPIOB
+#define LED_GREEN_PIN			0
+#define LED_RED_GPIO			GPIOB
+#define LED_RED_PIN				1
 
 // Hall/encoder pins
 #define HW_HALL_ENC_GPIO1		GPIOC
@@ -169,6 +177,14 @@
 #define READ_HALL1()			palReadPad(HW_HALL_ENC_GPIO1, HW_HALL_ENC_PIN1)
 #define READ_HALL2()			palReadPad(HW_HALL_ENC_GPIO2, HW_HALL_ENC_PIN2)
 #define READ_HALL3()			palReadPad(HW_HALL_ENC_GPIO3, HW_HALL_ENC_PIN3)
+
+#define LED_GREEN_ON()			palSetPad(LED_GREEN_GPIO, LED_GREEN_PIN)
+#define LED_GREEN_OFF()			palClearPad(LED_GREEN_GPIO, LED_GREEN_PIN)
+#define LED_RED_ON()			palSetPad(LED_RED_GPIO, LED_RED_PIN)
+#define LED_RED_OFF()			palClearPad(LED_RED_GPIO, LED_RED_PIN)
+
+#define PHASE_FILTER_ON()		palSetPad(PHASE_FILTER_GPIO, PHASE_FILTER_PIN)
+#define PHASE_FILTER_OFF()		palClearPad(PHASE_FILTER_GPIO, PHASE_FILTER_PIN)
 
 // Override dead time. See the stm32f4 reference manual for calculating this value.
 #define HW_DEAD_TIME_NSEC		10.0
@@ -256,11 +272,7 @@
 #define MCCONF_SI_BATTERY_AH				2.0 	// Battery amp hours
 #define MCCONF_FOC_HFI_AMB_CURRENT			15.0 	// HFI ambiguity resolution current
 
-
-
-
 #define APPCONF_IMU_TYPE					IMU_TYPE_EXTERNAL_LSM6DS3
-#define APPCONF_IMU_ROT_YAW					90.0
 
 
 
@@ -268,7 +280,7 @@
 // Setting limits
 #define HW_LIM_CURRENT				-45.0, 45.0		// Phase amps
 #define HW_LIM_CURRENT_ABS			-50.0, 50.0		// Absolute phase amps
-#define HW_LIM_CURRENT_IN			-20.0, 20.0		// Battery amps
+#define HW_LIM_CURRENT_IN			-40.0, 40.0		// Battery amps
 #define HW_LIM_VIN					6.0, 70.0
 #define HW_LIM_ERPM					-100e3, 100e3
 #define HW_LIM_DUTY_MIN				0.0, 0.1
