@@ -20,23 +20,13 @@
 #ifndef HW_CP100_H_
 #define HW_CP100_H_
 
-#define HW_NAME					"CP100_rev2.0"
+#define HW_NAME					"CP100_v2.0"
 
 // HW properties
 #define HW_HAS_3_SHUNTS
 #define HW_HAS_PHASE_SHUNTS		//Comment out this when shunts are in low side of inverter
+#define HW_HAS_PHASE_FILTERS
 #define HW_HAS_NO_CAN
-
-// Macros
-#define LED_GREEN_GPIO			GPIOB
-#define LED_GREEN_PIN			0
-#define LED_RED_GPIO			GPIOB
-#define LED_RED_PIN				1
-
-#define LED_GREEN_ON()			palSetPad(LED_GREEN_GPIO, LED_GREEN_PIN)
-#define LED_GREEN_OFF()			palClearPad(LED_GREEN_GPIO, LED_GREEN_PIN)
-#define LED_RED_ON()			palSetPad(LED_RED_GPIO, LED_RED_PIN)
-#define LED_RED_OFF()			palClearPad(LED_RED_GPIO, LED_RED_PIN)
 
 #define HW_ADC_CHANNELS			12
 #define HW_ADC_INJ_CHANNELS		3
@@ -82,8 +72,6 @@
 #define NTC_RES(adc_val)		((4095.0 * 10000.0) / adc_val - 10000.0)
 #define NTC_TEMP(adc_ind)		(1.0 / ((logf(NTC_RES(ADC_Value[adc_ind]) / 10000.0) / 3380.0) + (1.0 / 298.15)) - 273.15)
 
-//#define NTC_RES_MOTOR(adc_val)	(10000.0 / ((4095.0 / (float)adc_val) - 1.0)) // Motor temp sensor on low side
-//#define NTC_TEMP_MOTOR(beta)	(1.0 / ((logf(NTC_RES_MOTOR(ADC_Value[ADC_IND_TEMP_MOTOR]) / 10000.0) / beta) + (1.0 / 298.15)) - 273.15)
 #define NTC_RES_MOTOR(adc_val)	0.0
 #define NTC_TEMP_MOTOR(beta)	0.0
 
@@ -115,12 +103,23 @@
 #define HW_ICU_PIN				6
 
 // I2C Peripheral
+//#define HW_USE_I2CD2
 #define HW_I2C_DEV				I2CD2
 #define HW_I2C_GPIO_AF			GPIO_AF_I2C2
 #define HW_I2C_SCL_PORT			GPIOB
 #define HW_I2C_SCL_PIN			10
 #define HW_I2C_SDA_PORT			GPIOB
 #define HW_I2C_SDA_PIN			11
+
+// Phase filters
+#define PHASE_FILTER_GPIO		GPIOC
+#define PHASE_FILTER_PIN		9
+
+// LED
+#define LED_GREEN_GPIO			GPIOB
+#define LED_GREEN_PIN			0
+#define LED_RED_GPIO			GPIOB
+#define LED_RED_PIN				1
 
 // Hall/encoder pins
 #define HW_HALL_ENC_GPIO1		GPIOC
@@ -163,8 +162,16 @@
 #define READ_HALL2()			palReadPad(HW_HALL_ENC_GPIO2, HW_HALL_ENC_PIN2)
 #define READ_HALL3()			palReadPad(HW_HALL_ENC_GPIO3, HW_HALL_ENC_PIN3)
 
+#define LED_GREEN_ON()			palSetPad(LED_GREEN_GPIO, LED_GREEN_PIN)
+#define LED_GREEN_OFF()			palClearPad(LED_GREEN_GPIO, LED_GREEN_PIN)
+#define LED_RED_ON()			palSetPad(LED_RED_GPIO, LED_RED_PIN)
+#define LED_RED_OFF()			palClearPad(LED_RED_GPIO, LED_RED_PIN)
+
+#define PHASE_FILTER_ON()		palSetPad(PHASE_FILTER_GPIO, PHASE_FILTER_PIN)
+#define PHASE_FILTER_OFF()		palClearPad(PHASE_FILTER_GPIO, PHASE_FILTER_PIN)
+
 // Override dead time. See the stm32f4 reference manual for calculating this value.
-#define HW_DEAD_TIME_NSEC		20.0
+#define HW_DEAD_TIME_NSEC		400.0
 
 // Default setting overrides
 #define MCCONF_DEFAULT_MOTOR_TYPE			MOTOR_TYPE_FOC
