@@ -17,16 +17,26 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 	*/
 
-#ifndef HW_GAN_DHARA_H_
-#define HW_GAN_DHARA_H_
+#ifndef HW_CP100_H_
+#define HW_CP100_H_
 
-#define HW_NAME					"GaN_Dhara_v1.0"
+#define HW_NAME					"CP100_rev2.0"
 
 // HW properties
 #define HW_HAS_3_SHUNTS
 #define HW_HAS_PHASE_SHUNTS		//Comment out this when shunts are in low side of inverter
-#define HW_HAS_PHASE_FILTERS
-//#define HW_HAS_NO_CAN
+#define HW_HAS_NO_CAN
+
+// Macros
+#define LED_GREEN_GPIO			GPIOB
+#define LED_GREEN_PIN			0
+#define LED_RED_GPIO			GPIOB
+#define LED_RED_PIN				1
+
+#define LED_GREEN_ON()			palSetPad(LED_GREEN_GPIO, LED_GREEN_PIN)
+#define LED_GREEN_OFF()			palClearPad(LED_GREEN_GPIO, LED_GREEN_PIN)
+#define LED_RED_ON()			palSetPad(LED_RED_GPIO, LED_RED_PIN)
+#define LED_RED_OFF()			palClearPad(LED_RED_GPIO, LED_RED_PIN)
 
 #define HW_ADC_CHANNELS			12
 #define HW_ADC_INJ_CHANNELS		3
@@ -59,10 +69,10 @@
 #define VIN_R2					10000.0
 #endif
 #ifndef CURRENT_AMP_GAIN
-#define CURRENT_AMP_GAIN		1.0
+#define CURRENT_AMP_GAIN		200.0
 #endif
 #ifndef CURRENT_SHUNT_RES
-#define CURRENT_SHUNT_RES		0.02124170 //TLI4971A050T5E0001XUMA1
+#define CURRENT_SHUNT_RES		0.0003 //ACS711xEXLT-31AB
 #endif
 
 // Input voltage
@@ -72,6 +82,8 @@
 #define NTC_RES(adc_val)		((4095.0 * 10000.0) / adc_val - 10000.0)
 #define NTC_TEMP(adc_ind)		(1.0 / ((logf(NTC_RES(ADC_Value[adc_ind]) / 10000.0) / 3380.0) + (1.0 / 298.15)) - 273.15)
 
+//#define NTC_RES_MOTOR(adc_val)	(10000.0 / ((4095.0 / (float)adc_val) - 1.0)) // Motor temp sensor on low side
+//#define NTC_TEMP_MOTOR(beta)	(1.0 / ((logf(NTC_RES_MOTOR(ADC_Value[ADC_IND_TEMP_MOTOR]) / 10000.0) / beta) + (1.0 / 298.15)) - 273.15)
 #define NTC_RES_MOTOR(adc_val)	0.0
 #define NTC_TEMP_MOTOR(beta)	0.0
 
@@ -92,42 +104,23 @@
 #define HW_UART_RX_PORT			GPIOB
 #define HW_UART_RX_PIN			11
 
-//#define HW_UART_P_BAUD			115200
-//#define HW_UART_P_DEV			SD3
-//#define HW_UART_P_GPIO_AF		GPIO_AF_USART3
-//#define HW_UART_P_TX_PORT		GPIOB
-//#define HW_UART_P_TX_PIN		10
-//#define HW_UART_P_RX_PORT		GPIOB
-//#define HW_UART_P_RX_PIN		11
-
 // ICU Peripheral for servo decoding
 #define HW_USE_SERVO_TIM4
 #define HW_ICU_TIMER			TIM4
 #define HW_ICU_TIM_CLK_EN()		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE)
 #define HW_ICU_DEV				ICUD4
-#define HW_ICU_CHANNEL			ICU_CHANNEL_2
+#define HW_ICU_CHANNEL			ICU_CHANNEL_1
 #define HW_ICU_GPIO_AF			GPIO_AF_TIM4
 #define HW_ICU_GPIO				GPIOB
-#define HW_ICU_PIN				7
+#define HW_ICU_PIN				6
 
 // I2C Peripheral
-#define HW_USE_I2CD1
-#define HW_I2C_DEV				I2CD1
-#define HW_I2C_GPIO_AF			GPIO_AF_I2C1
+#define HW_I2C_DEV				I2CD2
+#define HW_I2C_GPIO_AF			GPIO_AF_I2C2
 #define HW_I2C_SCL_PORT			GPIOB
-#define HW_I2C_SCL_PIN			8
+#define HW_I2C_SCL_PIN			10
 #define HW_I2C_SDA_PORT			GPIOB
-#define HW_I2C_SDA_PIN			9
-
-// Phase filters
-#define PHASE_FILTER_GPIO		GPIOC
-#define PHASE_FILTER_PIN		9
-
-// LED
-#define LED_GREEN_GPIO			GPIOB
-#define LED_GREEN_PIN			0
-#define LED_RED_GPIO			GPIOB
-#define LED_RED_PIN				1
+#define HW_I2C_SDA_PIN			11
 
 // Hall/encoder pins
 #define HW_HALL_ENC_GPIO1		GPIOC
@@ -147,25 +140,17 @@
 #define HW_ENC_TIM_ISR_CH		TIM3_IRQn
 #define HW_ENC_TIM_ISR_VEC		TIM3_IRQHandler
 
-// CAN device and port
-#define HW_CANRX_PORT			GPIOB
-#define HW_CANRX_PIN			5
-#define HW_CANTX_PORT			GPIOB
-#define HW_CANTX_PIN			6
-#define HW_CAN_GPIO_AF			GPIO_AF_CAN1
-#define HW_CAN_DEV				CAND1
-
 // SPI pins
-#define HW_SPI_DEV				SPID3
-#define HW_SPI_GPIO_AF			GPIO_AF_SPI3
-#define HW_SPI_PORT_NSS			GPIOA
-#define HW_SPI_PIN_NSS			15
-#define HW_SPI_PORT_SCK			GPIOC
-#define HW_SPI_PIN_SCK			10
-#define HW_SPI_PORT_MOSI		GPIOC
-#define HW_SPI_PIN_MOSI			12
-#define HW_SPI_PORT_MISO		GPIOC
-#define HW_SPI_PIN_MISO			11
+#define HW_SPI_DEV				SPID1
+#define HW_SPI_GPIO_AF			GPIO_AF_SPI1
+#define HW_SPI_PORT_NSS			GPIOB
+#define HW_SPI_PIN_NSS			11
+#define HW_SPI_PORT_SCK			GPIOA
+#define HW_SPI_PIN_SCK			5
+#define HW_SPI_PORT_MOSI		GPIOA
+#define HW_SPI_PIN_MOSI			7
+#define HW_SPI_PORT_MISO		GPIOA
+#define HW_SPI_PIN_MISO			6
 
 // Measurement macros
 #define ADC_V_L1				ADC_Value[ADC_IND_SENS1]
@@ -178,16 +163,8 @@
 #define READ_HALL2()			palReadPad(HW_HALL_ENC_GPIO2, HW_HALL_ENC_PIN2)
 #define READ_HALL3()			palReadPad(HW_HALL_ENC_GPIO3, HW_HALL_ENC_PIN3)
 
-#define LED_GREEN_ON()			palSetPad(LED_GREEN_GPIO, LED_GREEN_PIN)
-#define LED_GREEN_OFF()			palClearPad(LED_GREEN_GPIO, LED_GREEN_PIN)
-#define LED_RED_ON()			palSetPad(LED_RED_GPIO, LED_RED_PIN)
-#define LED_RED_OFF()			palClearPad(LED_RED_GPIO, LED_RED_PIN)
-
-#define PHASE_FILTER_ON()		palSetPad(PHASE_FILTER_GPIO, PHASE_FILTER_PIN)
-#define PHASE_FILTER_OFF()		palClearPad(PHASE_FILTER_GPIO, PHASE_FILTER_PIN)
-
 // Override dead time. See the stm32f4 reference manual for calculating this value.
-#define HW_DEAD_TIME_NSEC		10.0
+#define HW_DEAD_TIME_NSEC		20.0
 
 // Default setting overrides
 #define MCCONF_DEFAULT_MOTOR_TYPE			MOTOR_TYPE_FOC
@@ -216,7 +193,7 @@
 #define MCCONF_L_LIM_TEMP_FET_START			70.0	// MOSFET temperature where current limiting should begin
 #define MCCONF_L_LIM_TEMP_FET_END			80.0	// MOSFET temperature where everything should be shut off
 #define MCCONF_L_WATT_MAX					300.0	// Maximum wattage output
-#define MCCONF_L_WATT_MIN					-80.0	// Minimum wattage output (braking)
+#define MCCONF_L_WATT_MIN					-10.0	// Minimum wattage output (braking)
 #define MCCONF_L_DUTY_START					0.98 	// Start limiting current at this duty cycle
 													// Common PID-parameters
 #define MCCONF_SP_PID_LOOP_RATE				PID_RATE_1000_HZ		// PID loop rate
@@ -233,7 +210,7 @@
 #define MCCONF_CC_MIN_CURRENT				0.5		// Minimum allowed current
 													// FOC
 #define MCCONF_FOC_F_ZV						30000.0
-#define MCCONF_FOC_DT_US					0.01 	// Microseconds for dead time compensation
+#define MCCONF_FOC_DT_US					0.02 	// Microseconds for dead time compensation
 #define MCCONF_FOC_SENSOR_MODE				FOC_SENSOR_MODE_HALL
 #define MCCONF_FOC_MOTOR_L					156.85e-6
 #define MCCONF_FOC_MOTOR_R					69.3e-3
@@ -272,20 +249,18 @@
 #define MCCONF_SI_BATTERY_AH				2.0 	// Battery amp hours
 #define MCCONF_FOC_HFI_AMB_CURRENT			15.0 	// HFI ambiguity resolution current
 
-#define APPCONF_IMU_TYPE					IMU_TYPE_EXTERNAL_LSM6DS3
-
 
 
 
 // Setting limits
-#define HW_LIM_CURRENT				-45.0, 45.0		// Phase amps
-#define HW_LIM_CURRENT_ABS			-50.0, 50.0		// Absolute phase amps
-#define HW_LIM_CURRENT_IN			-40.0, 40.0		// Battery amps
-#define HW_LIM_VIN					6.0, 70.0
+#define HW_LIM_CURRENT				-21.0, 21.0		// Phase amps
+#define HW_LIM_CURRENT_ABS			-31.5, 31.5		// Absolute phase amps
+#define HW_LIM_CURRENT_IN			-3.0, 10.0		// Battery amps
+#define HW_LIM_VIN					7.0, 65.0
 #define HW_LIM_ERPM					-100e3, 100e3
 #define HW_LIM_DUTY_MIN				0.0, 0.1
 #define HW_LIM_DUTY_MAX				0.0, 0.99
 #define HW_LIM_TEMP_FET				-20.0, 90.0
 #define HW_LIM_FOC_CTRL_LOOP_FREQ	1000.0, 25000.0
 
-#endif /* HW_GAN_DHARA_H_ */
+#endif /* HW_CP100_H_ */
