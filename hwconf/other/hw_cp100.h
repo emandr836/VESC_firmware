@@ -180,10 +180,10 @@
 #define MCCONF_COMM_MODE					COMM_MODE_INTEGRATE		// The commutation mode to use
 													// Limits
 #define MCCONF_L_CURRENT_MAX				18.0	// Current limit in Amperes (Upper)
-#define MCCONF_L_CURRENT_MIN				-0.1	// Current limit in Amperes (Lower)
+#define MCCONF_L_CURRENT_MIN				-5.0	// Current limit in Amperes (Lower)
 #define MCCONF_L_IN_CURRENT_MAX				7.0		// Input current limit in Amperes (Upper)
-#define MCCONF_L_IN_CURRENT_MIN				-0.1	// Input current limit in Amperes (Lower)
-#define MCCONF_L_IN_CURRENT_MAP_START		0.85	// Input current to Q axis current limit map start
+#define MCCONF_L_IN_CURRENT_MIN				-2.0	// Input current limit in Amperes (Lower)
+#define MCCONF_L_IN_CURRENT_MAP_START		1.00	// Input current to Q axis current limit map start
 #define MCCONF_L_IN_CURRENT_MAP_FILTER		0.1		// Input current filter for the mapped limit
 #define MCCONF_L_MAX_ABS_CURRENT			27.0	// The maximum absolute current above which a fault is generated
 #define MCCONF_L_MIN_VOLTAGE				7.0		// Minimum input voltage
@@ -194,14 +194,14 @@
 #define MCCONF_L_BATTERY_REGEN_CUT_END  	58.0	// Limit the regen current completely at this voltage
 #define MCCONF_L_RPM_MAX					90000.0	// The motor speed limit (Upper)
 #define MCCONF_L_RPM_MIN					-8000.0	// The motor speed limit (Lower)
-#define MCCONF_L_RPM_START					0.8		// Fraction of full speed where RPM current limiting starts
+#define MCCONF_L_RPM_START					0.9		// Fraction of full speed where RPM current limiting starts
 #define MCCONF_L_MIN_DUTY					0.005	// Minimum duty cycle
-#define MCCONF_L_MAX_DUTY					0.99	// Maximum duty cycle
+#define MCCONF_L_MAX_DUTY					0.95	// Maximum duty cycle
 #define MCCONF_L_LIM_TEMP_FET_START			70.0	// MOSFET temperature where current limiting should begin
 #define MCCONF_L_LIM_TEMP_FET_END			80.0	// MOSFET temperature where everything should be shut off
 #define MCCONF_L_WATT_MAX					300.0	// Maximum wattage output
 #define MCCONF_L_WATT_MIN					-10.0	// Minimum wattage output (braking)
-#define MCCONF_L_DUTY_START					0.98 	// Start limiting current at this duty cycle
+#define MCCONF_L_DUTY_START					1.00 	// Start limiting current at this duty cycle
 													// Common PID-parameters
 #define MCCONF_SP_PID_LOOP_RATE				PID_RATE_1000_HZ		// PID loop rate
 													// Speed PID parameters
