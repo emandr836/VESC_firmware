@@ -228,7 +228,7 @@
 #define MCCONF_FOC_OPENLOOP_RPM				5000.0	// Openloop RPM (sensorless low speed or when finding index pulse)
 #define MCCONF_FOC_SL_OPENLOOP_HYST			0.1		// Time below min RPM to activate openloop (s)
 #define MCCONF_FOC_SL_OPENLOOP_TIME			0.05	// Time to remain in openloop after ramping (s)
-#define MCCONF_FOC_SL_OPENLOOP_BOOST_Q		15.0	// Q-axis current boost during the open loop procedure
+#define MCCONF_FOC_SL_OPENLOOP_BOOST_Q		0.0		// Q-axis current boost during the open loop procedure
 #define MCCONF_FOC_SL_OPENLOOP_MAX_Q		15.0	// Q-axis maximum current during the open loop procedure
 #define MCCONF_FOC_SL_OPENLOOP_T_LOCK		0.1		// Time to lock motor in beginning of open loop sequence
 #define MCCONF_FOC_SL_OPENLOOP_T_RAMP		0.3		// Time to ramp up motor to openloop speed
