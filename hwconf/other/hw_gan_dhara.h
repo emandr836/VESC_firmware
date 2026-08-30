@@ -261,7 +261,7 @@
 #define MCCONF_FOC_SL_ERPM					5000.0	// ERPM above which only the observer is used
 #define MCCONF_FOC_CONTROL_SAMPLE_MODE		FOC_CONTROL_SAMPLE_MODE_V0_V7_INTERPOL
 #define MCCONF_FOC_CURRENT_SAMPLE_MODE		FOC_CURRENT_SAMPLE_MODE_LONGEST_ZERO
-#define MCCONF_FOC_TEMP_COMP				true	// Motor temperature compensation
+#define MCCONF_FOC_TEMP_COMP				false	// Motor temperature compensation
 #define MCCONF_FOC_TEMP_COMP_BASE_TEMP		25.0	// Motor temperature compensation base temperature
 #define MCCONF_FOC_CC_DECOUPLING			FOC_CC_DECOUPLING_DISABLED 			// Current controller decoupling
 #define MCCONF_FOC_OBSERVER_TYPE			FOC_OBSERVER_MXLEMMING_LAMBDA_COMP	// Position observer type for FOC
