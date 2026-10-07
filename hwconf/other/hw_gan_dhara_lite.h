@@ -26,7 +26,7 @@
 #define HW_HAS_3_SHUNTS
 #define HW_HAS_PHASE_SHUNTS     //Comment out this when shunts are in low side of inverter
 #define HW_HAS_PHASE_FILTERS
-//#define HW_HAS_NO_CAN
+#define HW_HAS_NO_CAN
 
 #define HW_ADC_INJ_CHANNELS     3
 #define HW_ADC_NBR_CONV         4
@@ -83,21 +83,22 @@
 #define HW_ADC_EXT2_GPIO        GPIOA
 #define HW_ADC_EXT2_PIN         7
 
-// UART Peripheral
-#define HW_UART_DEV             SD3
-#define HW_UART_GPIO_AF         GPIO_AF_USART3
-#define HW_UART_TX_PORT         GPIOB
-#define HW_UART_TX_PIN          10
-#define HW_UART_RX_PORT         GPIOB
-#define HW_UART_RX_PIN          11
+// Built-in BLE module on USART3
+#define HW_UART_P_BAUD          115200
+#define HW_UART_P_DEV           SD3
+#define HW_UART_P_GPIO_AF       GPIO_AF_USART3
+#define HW_UART_P_TX_PORT       GPIOB
+#define HW_UART_P_TX_PIN        10
+#define HW_UART_P_RX_PORT       GPIOB
+#define HW_UART_P_RX_PIN        11
 
-//#define HW_UART_P_BAUD            115200
-//#define HW_UART_P_DEV         SD3
-//#define HW_UART_P_GPIO_AF     GPIO_AF_USART3
-//#define HW_UART_P_TX_PORT     GPIOB
-//#define HW_UART_P_TX_PIN      10
-//#define HW_UART_P_RX_PORT     GPIOB
-//#define HW_UART_P_RX_PIN      11
+// Dummy. Just to make USART3 work as built-in UART.
+#define HW_UART_DEV             SD4
+#define HW_UART_GPIO_AF         GPIO_AF_UART4
+#define HW_UART_TX_PORT         GPIOC
+#define HW_UART_TX_PIN          10
+#define HW_UART_RX_PORT         GPIOC
+#define HW_UART_RX_PIN          11
 
 // ICU Peripheral for servo decoding
 #define HW_USE_SERVO_TIM4
@@ -109,6 +110,12 @@
 #define HW_ICU_GPIO             GPIOB
 #define HW_ICU_PIN              7
 
+// On-board IMU
+#define LSM6DS3_SCL_GPIO        GPIOB
+#define LSM6DS3_SCL_PIN         8
+#define LSM6DS3_SDA_GPIO        GPIOB
+#define LSM6DS3_SDA_PIN         9
+
 // I2C Peripheral
 #define HW_USE_I2CD1
 #define HW_I2C_DEV              I2CD1
@@ -119,14 +126,14 @@
 #define HW_I2C_SDA_PIN          9
 
 // Phase filters
-#define PHASE_FILTER_GPIO       GPIOC
-#define PHASE_FILTER_PIN        9
+#define PHASE_FILTER_GPIO       GPIOA
+#define PHASE_FILTER_PIN        15
 
 // LED
-#define LED_GREEN_GPIO          GPIOB
-#define LED_GREEN_PIN           0
-#define LED_RED_GPIO            GPIOB
-#define LED_RED_PIN             1
+#define LED_GREEN_GPIO          GPIOC
+#define LED_GREEN_PIN           12
+#define LED_RED_GPIO            GPIOD
+#define LED_RED_PIN             2
 
 // Hall/encoder pins
 #define HW_HALL_ENC_GPIO1       GPIOC
@@ -155,16 +162,16 @@
 #define HW_CAN_DEV              CAND2
 
 // SPI pins
-#define HW_SPI_DEV              SPID3
-#define HW_SPI_GPIO_AF          GPIO_AF_SPI3
+#define HW_SPI_DEV              SPID1
+#define HW_SPI_GPIO_AF          GPIO_AF_SPI1
 #define HW_SPI_PORT_NSS         GPIOA
-#define HW_SPI_PIN_NSS          15
-#define HW_SPI_PORT_SCK         GPIOC
-#define HW_SPI_PIN_SCK          10
-#define HW_SPI_PORT_MOSI        GPIOC
-#define HW_SPI_PIN_MOSI         12
-#define HW_SPI_PORT_MISO        GPIOC
-#define HW_SPI_PIN_MISO         11
+#define HW_SPI_PIN_NSS          4
+#define HW_SPI_PORT_SCK         GPIOB
+#define HW_SPI_PIN_SCK          3
+#define HW_SPI_PORT_MOSI        GPIOB
+#define HW_SPI_PIN_MOSI         5
+#define HW_SPI_PORT_MISO        GPIOB
+#define HW_SPI_PIN_MISO         4
 
 // Measurement macros
 #define ADC_V_L1                ADC_Value[ADC_IND_SENS1]
@@ -271,7 +278,7 @@
 #define MCCONF_SI_BATTERY_AH                2.0     // Battery amp hours
 #define MCCONF_FOC_HFI_AMB_CURRENT          15.0    // HFI ambiguity resolution current
 
-#define APPCONF_IMU_TYPE                    IMU_TYPE_EXTERNAL_LSM6DS3
+#define APPCONF_IMU_TYPE                    IMU_TYPE_INTERNAL
 
 
 
