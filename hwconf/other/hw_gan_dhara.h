@@ -120,10 +120,11 @@
 #define HW_ICU_PIN              7
 
 // On-board IMU
-#define LSM6DS3_SCL_GPIO        GPIOB
-#define LSM6DS3_SCL_PIN         8
-#define LSM6DS3_SDA_GPIO        GPIOB
-#define LSM6DS3_SDA_PIN         9
+#define LSM6DS3_USE_HW_I2C
+#define LSM6DS3_I2C_DEV         HW_I2C_DEV
+#define ICM42670_USE_HW_I2C
+#define ICM42670_I2C_DEV        HW_I2C_DEV
+#define HW_LIM_IMU_SAMPLE_RATE_HZ   2000
 
 // I2C Peripheral (APP_NUNCHUK must not be used)
 #define HW_USE_I2CD1

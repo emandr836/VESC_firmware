@@ -46,6 +46,8 @@ void imu_init_lsm6ds3_spi(
         stm32_gpio_t *sck_gpio, int sck_pin,
         stm32_gpio_t *mosi_gpio, int mosi_pin,
         stm32_gpio_t *miso_gpio, int miso_pin);
+void imu_init_lsm6ds3_hw_i2c(void);
+bool imu_init_icm42670_hw_i2c(void);
 void imu_stop(void);
 bool imu_startup_done(void);
 float imu_get_roll(void);

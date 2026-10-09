@@ -61,7 +61,7 @@
 #define CURRENT_AMP_GAIN        1.0
 #endif
 #ifndef CURRENT_SHUNT_RES
-#define CURRENT_SHUNT_RES       0.02124170 //TLI4971A050T5E0001XUMA1
+#define CURRENT_SHUNT_RES       0.033
 #endif
 
 // Input voltage
@@ -111,10 +111,11 @@
 #define HW_ICU_PIN              7
 
 // On-board IMU
-#define LSM6DS3_SCL_GPIO        GPIOB
-#define LSM6DS3_SCL_PIN         8
-#define LSM6DS3_SDA_GPIO        GPIOB
-#define LSM6DS3_SDA_PIN         9
+#define LSM6DS3_USE_HW_I2C
+#define LSM6DS3_I2C_DEV         HW_I2C_DEV
+#define ICM42670_USE_HW_I2C
+#define ICM42670_I2C_DEV        HW_I2C_DEV
+#define HW_LIM_IMU_SAMPLE_RATE_HZ   2000
 
 // I2C Peripheral
 #define HW_USE_I2CD1
@@ -193,7 +194,7 @@
 #define PHASE_FILTER_OFF()      palClearPad(PHASE_FILTER_GPIO, PHASE_FILTER_PIN)
 
 // Override dead time. See the stm32f4 reference manual for calculating this value.
-#define HW_DEAD_TIME_NSEC       10.0
+#define HW_DEAD_TIME_NSEC       20.0
 
 // Default setting overrides
 #define MCCONF_DEFAULT_MOTOR_TYPE           MOTOR_TYPE_FOC
@@ -284,9 +285,9 @@
 
 
 // Setting limits
-#define HW_LIM_CURRENT              -45.0, 45.0     // Phase amps
-#define HW_LIM_CURRENT_ABS          -50.0, 50.0     // Absolute phase amps
-#define HW_LIM_CURRENT_IN           -40.0, 40.0     // Battery amps
+#define HW_LIM_CURRENT              -25.0, 25.0     // Phase amps
+#define HW_LIM_CURRENT_ABS          -40.0, 40.0     // Absolute phase amps
+#define HW_LIM_CURRENT_IN           -25.0, 25.0     // Battery amps
 #define HW_LIM_VIN                  6.0, 70.0
 #define HW_LIM_ERPM                 -100e3, 100e3
 #define HW_LIM_DUTY_MIN             0.0, 0.1

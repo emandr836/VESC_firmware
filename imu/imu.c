@@ -27,6 +27,7 @@
 #include "icm20948.h"
 #include "bmi160_wrapper.h"
 #include "lsm6ds3.h"
+#include "icm42670.h"
 #include "utils_math.h"
 #include "Fusion.h"
 #include "digital_filter.h"
@@ -121,9 +122,11 @@ void imu_init(imu_config *set) {
 	m_icm20948_state.rate_hz = MIN(set->sample_rate_hz, 1000);
 	m_bmi_state.rate_hz = set->sample_rate_hz;
 	lsm6ds3_set_rate_hz(set->sample_rate_hz);
+	icm42670_set_rate_hz(set->sample_rate_hz);
 
 	m_bmi_state.filter = set->filter;
 	lsm6ds3_set_filter(set->filter);
+	icm42670_set_filter(set->filter);
 
 	if (set->type == IMU_TYPE_INTERNAL) {
 #ifdef MPU9X50_SDA_GPIO
@@ -148,6 +151,20 @@ void imu_init(imu_config *set) {
 		imu_init_lsm6ds3(LSM6DS3_SDA_GPIO, LSM6DS3_SDA_PIN,
 				LSM6DS3_SCL_GPIO, LSM6DS3_SCL_PIN);
 		m_imu_type_internal = "LSM6DS3";
+#endif
+
+#ifdef ICM42670_USE_HW_I2C
+		if (imu_init_icm42670_hw_i2c()) {
+			m_imu_type_internal = "ICM42670_I2C_HW";
+		} else {
+#ifdef LSM6DS3_USE_HW_I2C
+			imu_init_lsm6ds3_hw_i2c();
+			m_imu_type_internal = "LSM6DS3_I2C_HW";
+#endif
+		}
+#elif defined(LSM6DS3_USE_HW_I2C)
+		imu_init_lsm6ds3_hw_i2c();
+		m_imu_type_internal = "LSM6DS3_I2C_HW";
 #endif
 
 #ifdef LSM6DS3_USE_SPI
@@ -193,8 +210,12 @@ void imu_init(imu_config *set) {
 		imu_init_bmi160_i2c(HW_I2C_SDA_PORT, HW_I2C_SDA_PIN,
 				HW_I2C_SCL_PORT, HW_I2C_SCL_PIN);
 	} else if(set->type == IMU_TYPE_EXTERNAL_LSM6DS3) {
+#ifdef LSM6DS3_USE_HW_I2C
+		imu_init_lsm6ds3_hw_i2c();
+#else
 		imu_init_lsm6ds3(HW_I2C_SDA_PORT, HW_I2C_SDA_PIN,
 				HW_I2C_SCL_PORT, HW_I2C_SCL_PIN);
+#endif
 	} else if (set->type == IMU_TYPE_EXTERNAL_BMI160) {
 		imu_init_bmi160_i2c(HW_I2C_SDA_PORT, HW_I2C_SDA_PIN,
 				HW_I2C_SCL_PORT, HW_I2C_SCL_PIN);
@@ -309,9 +330,36 @@ void imu_init_lsm6ds3(stm32_gpio_t *sda_gpio, int sda_pin,
 
 	i2c_bb_init(&m_i2c_bb);
 
-	lsm6ds3_init(&m_i2c_bb, NULL, NULL, m_thd_work_area, sizeof(m_thd_work_area));
+	lsm6ds3_init(&m_i2c_bb, NULL, NULL, NULL, m_thd_work_area, sizeof(m_thd_work_area));
 	lsm6ds3_set_read_callback(imu_read_callback);
 }
+
+#ifdef LSM6DS3_USE_HW_I2C
+void imu_init_lsm6ds3_hw_i2c(void) {
+	imu_stop();
+
+	hw_start_i2c();
+
+	lsm6ds3_init(NULL, NULL, NULL, &LSM6DS3_I2C_DEV,
+			m_thd_work_area, sizeof(m_thd_work_area));
+	lsm6ds3_set_read_callback(imu_read_callback);
+}
+#endif
+
+#ifdef ICM42670_USE_HW_I2C
+bool imu_init_icm42670_hw_i2c(void) {
+	imu_stop();
+
+	hw_start_i2c();
+
+	if (!icm42670_init(&ICM42670_I2C_DEV, m_thd_work_area, sizeof(m_thd_work_area))) {
+		return false;
+	}
+	icm42670_set_read_callback(imu_read_callback);
+
+	return true;
+}
+#endif
 
 void imu_init_lsm6ds3_spi(stm32_gpio_t *nss_gpio, int nss_pin,
 		stm32_gpio_t *sck_gpio, int sck_pin, stm32_gpio_t *mosi_gpio, int mosi_pin,
@@ -330,7 +378,7 @@ void imu_init_lsm6ds3_spi(stm32_gpio_t *nss_gpio, int nss_pin,
 
 	spiStart(&LSM6DS3_HWSPI_DEV, &m_lsm6ds3_hw_spi_cfg);
 
-	lsm6ds3_init(NULL, NULL, &LSM6DS3_HWSPI_DEV, m_thd_work_area, sizeof(m_thd_work_area));
+	lsm6ds3_init(NULL, NULL, &LSM6DS3_HWSPI_DEV, NULL, m_thd_work_area, sizeof(m_thd_work_area));
 #else
 	m_spi_bb.nss_gpio = nss_gpio;
 	m_spi_bb.nss_pin = nss_pin;
@@ -342,7 +390,7 @@ void imu_init_lsm6ds3_spi(stm32_gpio_t *nss_gpio, int nss_pin,
 	m_spi_bb.miso_pin = miso_pin;
 
 	spi_bb_init(&m_spi_bb);
-	lsm6ds3_init(NULL, &m_spi_bb, NULL, m_thd_work_area, sizeof(m_thd_work_area));
+	lsm6ds3_init(NULL, &m_spi_bb, NULL, NULL, m_thd_work_area, sizeof(m_thd_work_area));
 #endif
 
 	lsm6ds3_set_read_callback(imu_read_callback);
@@ -353,6 +401,7 @@ void imu_stop(void) {
 	icm20948_stop(&m_icm20948_state);
 	bmi160_wrapper_stop(&m_bmi_state);
 	lsm6ds3_stop();
+	icm42670_stop();
 
 #ifdef LSM6DS3_HWSPI_DEV
 	spiStop(&LSM6DS3_HWSPI_DEV);

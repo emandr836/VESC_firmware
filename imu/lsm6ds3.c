@@ -22,6 +22,7 @@
 #include "terminal.h"
 #include "commands.h"
 #include "utils_math.h"
+#include "hw.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -30,6 +31,7 @@ static thread_t *lsm6ds3_thread_ref = NULL;
 static i2c_bb_state *m_i2c_bb;
 static spi_bb_state *m_spi_bb;
 static SPIDriver *m_hwspi_dev;
+static I2CDriver *m_hwi2c_dev;
 static volatile uint16_t lsm6ds3_addr;
 static int rate_hz = 1000;
 static IMU_FILTER filter;
@@ -44,6 +46,32 @@ static THD_FUNCTION(lsm6ds3_thread, arg);
 // Function pointers
 static void(*read_callback)(float *accel, float *gyro, float *mag) = 0;
 
+static bool is_valid_who_am_i(uint8_t id) {
+	return id == 0x69 || id == 0x6A || id == 0x6C;
+}
+
+static bool read_who_am_i(uint8_t *id) {
+	int tries = 1;
+#ifdef LSM6DS3_USE_HW_I2C
+	if (m_hwi2c_dev) {
+		tries = 5;
+	}
+#endif
+
+	for (int i = 0;i < tries;i++) {
+		if (i > 0) {
+			chThdSleepMilliseconds(2);
+		}
+
+		*id = 0;
+		if (read_reg(LSM6DS3_ACC_GYRO_WHO_AM_I_REG, id) && is_valid_who_am_i(*id)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void lsm6ds3_set_rate_hz(int hz) {
 	rate_hz = hz;
 }
@@ -53,23 +81,24 @@ void lsm6ds3_set_filter(IMU_FILTER f) {
 }
 
 void lsm6ds3_init(i2c_bb_state *i2c_state, spi_bb_state *spi_state, SPIDriver *spi_hw,
-		stkalign_t *work_area, size_t work_area_size) {
+		I2CDriver *i2c_hw, stkalign_t *work_area, size_t work_area_size) {
 
 	read_callback = 0;
 
 	m_i2c_bb = i2c_state;
 	m_spi_bb = spi_state;
 	m_hwspi_dev = spi_hw;
+	m_hwi2c_dev = i2c_hw;
 
-	uint8_t rxb[1];
+	uint8_t rxb[1] = {0};
 
 	lsm6ds3_addr = LSM6DS3_ACC_GYRO_ADDR_A;
-	bool res = read_reg(LSM6DS3_ACC_GYRO_WHO_AM_I_REG, rxb);
-	if (!res || (rxb[0] != 0x69 && rxb[0] != 0x6A && rxb[0] != 0x6C)) {
+	bool res = read_who_am_i(rxb);
+	if (!res) {
 		commands_printf("LSM6DS3 Address A failed, trying B (rx: %d)", rxb[0]);
 		lsm6ds3_addr = LSM6DS3_ACC_GYRO_ADDR_B;
-		res = read_reg(LSM6DS3_ACC_GYRO_WHO_AM_I_REG, rxb);
-		if (!res || (rxb[0] != 0x69 && rxb[0] != 0x6A && rxb[0] != 0x6C)) {
+		res = read_who_am_i(rxb);
+		if (!res) {
 			commands_printf("LSM6DS3 Address B failed (rx: %d)", rxb[0]);
 			return;
 		}
@@ -228,6 +257,33 @@ void lsm6ds3_set_read_callback(void(*func)(float *accel, float *gyro, float *mag
 	read_callback = func;
 }
 
+#ifdef LSM6DS3_USE_HW_I2C
+static bool hwi2c_tx_rx(const uint8_t *txbuf, size_t txlen, uint8_t *rxbuf, size_t rxlen) {
+	static uint8_t tx_dma[2];
+	static uint8_t rx_dma[12];
+
+	if (txlen > sizeof(tx_dma) || rxlen > sizeof(rx_dma)) {
+		return false;
+	}
+
+	i2cAcquireBus(m_hwi2c_dev);
+	memcpy(tx_dma, txbuf, txlen);
+	msg_t res = i2cMasterTransmitTimeout(m_hwi2c_dev, lsm6ds3_addr,
+		tx_dma, txlen, rxlen > 0 ? rx_dma : NULL, rxlen, MS2ST(5));
+	if (res == MSG_OK && rxlen > 0) {
+		memcpy(rxbuf, rx_dma, rxlen);
+	}
+	i2cReleaseBus(m_hwi2c_dev);
+
+	if (res != MSG_OK) {
+		hw_try_restore_i2c();
+		return false;
+	}
+
+	return true;
+}
+#endif
+
 static bool read_reg(uint8_t reg, uint8_t *res) {
 	bool ok = false;
 
@@ -264,6 +320,15 @@ static bool read_reg(uint8_t reg, uint8_t *res) {
 		spiReleaseBus(m_hwspi_dev);
 		ok = true;
 	}
+#ifdef LSM6DS3_USE_HW_I2C
+	else if (m_hwi2c_dev) {
+		uint8_t txb[1];
+		uint8_t rxb[2];
+		txb[0] = reg;
+		ok = hwi2c_tx_rx(txb, 1, rxb, 2);
+		*res = ok ? rxb[0] : 0;
+	}
+#endif
 
 	return ok;
 }
@@ -299,6 +364,14 @@ static bool write_reg(uint8_t reg, uint8_t value) {
 		spiReleaseBus(m_hwspi_dev);
 		ok = true;
 	}
+#ifdef LSM6DS3_USE_HW_I2C
+	else if (m_hwi2c_dev) {
+		uint8_t txb[2];
+		txb[0] = reg;
+		txb[1] = value;
+		ok = hwi2c_tx_rx(txb, 2, 0, 0);
+	}
+#endif
 
 	return ok;
 }
@@ -341,6 +414,17 @@ static bool read_gyro_accel(uint8_t *res) {
 		spiReleaseBus(m_hwspi_dev);
 		ok = true;
 	}
+#ifdef LSM6DS3_USE_HW_I2C
+	else if (m_hwi2c_dev) {
+		uint8_t txb[1];
+		txb[0] = LSM6DS3_ACC_GYRO_OUTX_L_G;
+		ok = hwi2c_tx_rx(txb, 1, res, 12);
+
+		if (!ok) {
+			memset(res, 0, 12);
+		}
+	}
+#endif
 
 	return ok;
 }

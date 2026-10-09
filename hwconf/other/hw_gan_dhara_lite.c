@@ -31,8 +31,8 @@ static mutex_t shutdown_mutex;
 // I2C configuration
 static const I2CConfig i2cfg = {
         OPMODE_I2C,
-        100000,
-        STD_DUTY_CYCLE
+        400000,
+        FAST_DUTY_CYCLE_2
 };
 
 void hw_init_gpio(void) {
@@ -127,6 +127,7 @@ void hw_start_i2c(void) {
 }
 
 void hw_stop_i2c(void) {
+#ifndef LSM6DS3_USE_HW_I2C
     i2cAcquireBus(&HW_I2C_DEV);
 
     if (i2c_running) {
@@ -139,6 +140,7 @@ void hw_stop_i2c(void) {
     }
 
     i2cReleaseBus(&HW_I2C_DEV);
+#endif
 }
 
 /**
@@ -148,8 +150,8 @@ void hw_try_restore_i2c(void) {
     if (i2c_running) {
         i2cAcquireBus(&HW_I2C_DEV);
 
-        palSetPadMode(HW_I2C_SCL_PORT, HW_I2C_SCL_PIN, PAL_STM32_OTYPE_OPENDRAIN | PAL_STM32_OSPEED_MID1 | PAL_STM32_PUDR_PULLUP);
-        palSetPadMode(HW_I2C_SDA_PORT, HW_I2C_SDA_PIN, PAL_STM32_OTYPE_OPENDRAIN | PAL_STM32_OSPEED_MID1 | PAL_STM32_PUDR_PULLUP);
+        palSetPadMode(HW_I2C_SCL_PORT, HW_I2C_SCL_PIN, PAL_MODE_OUTPUT_OPENDRAIN | PAL_STM32_OSPEED_MID1 | PAL_STM32_PUDR_PULLUP);
+        palSetPadMode(HW_I2C_SDA_PORT, HW_I2C_SDA_PIN, PAL_MODE_OUTPUT_OPENDRAIN | PAL_STM32_OSPEED_MID1 | PAL_STM32_PUDR_PULLUP);
 
         palSetPad(HW_I2C_SCL_PORT, HW_I2C_SCL_PIN);
         palSetPad(HW_I2C_SDA_PORT, HW_I2C_SDA_PIN);
