@@ -395,6 +395,9 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 			break;
 		}
 	} else {
+		if (configuration->motor_type == MOTOR_TYPE_FOC) {
+			mcpwm_foc_prepare_configuration(configuration);
+		}
 		motor->m_conf = *configuration;
 	}
 

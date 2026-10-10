@@ -29,6 +29,7 @@
 void mcpwm_foc_init(mc_configuration *conf_m1, mc_configuration *conf_m2);
 void mcpwm_foc_deinit(void);
 bool mcpwm_foc_init_done(void);
+void mcpwm_foc_prepare_configuration(mc_configuration *configuration);
 void mcpwm_foc_set_configuration(mc_configuration *configuration);
 mc_state mcpwm_foc_get_state(void);
 mc_control_mode mcpwm_foc_control_mode(void);

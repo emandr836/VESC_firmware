@@ -75,13 +75,25 @@ static THD_FUNCTION(pid_thread, arg);
 static volatile bool pid_thd_stop;
 
 // Macros
+#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
+#define TIMER_UPDATE_GUARD_TICKS	32
+#define TIMER_UPDATE_BEGIN_M1() \
+		while ((TIM1->ARR * FOC_CONTROL_LOOP_FREQ_DIVIDER / 2 - TIM2->CNT) <= TIMER_UPDATE_GUARD_TICKS) {}
+#define TIMER_UPDATE_END_M1()
+#else
+#define TIMER_UPDATE_BEGIN_M1() \
+		TIM1->CR1 |= TIM_CR1_UDIS;
+#define TIMER_UPDATE_END_M1() \
+		TIM1->CR1 &= ~TIM_CR1_UDIS;
+#endif
+
 #ifdef HW_HAS_3_SHUNTS
 #define TIMER_UPDATE_DUTY_M1(duty1, duty2, duty3) \
-		TIM1->CR1 |= TIM_CR1_UDIS; \
+		TIMER_UPDATE_BEGIN_M1() \
 		TIM1->CCR1 = duty1; \
 		TIM1->CCR2 = duty2; \
 		TIM1->CCR3 = duty3; \
-		TIM1->CR1 &= ~TIM_CR1_UDIS;
+		TIMER_UPDATE_END_M1()
 
 #define TIMER_UPDATE_DUTY_M2(duty1, duty2, duty3) \
 		TIM8->CR1 |= TIM_CR1_UDIS; \
@@ -91,11 +103,11 @@ static volatile bool pid_thd_stop;
 		TIM8->CR1 &= ~TIM_CR1_UDIS;
 #else
 #define TIMER_UPDATE_DUTY_M1(duty1, duty2, duty3) \
-		TIM1->CR1 |= TIM_CR1_UDIS; \
+		TIMER_UPDATE_BEGIN_M1() \
 		TIM1->CCR1 = duty1; \
 		TIM1->CCR2 = duty3; \
 		TIM1->CCR3 = duty2; \
-		TIM1->CR1 &= ~TIM_CR1_UDIS;
+		TIMER_UPDATE_END_M1()
 #define TIMER_UPDATE_DUTY_M2(duty1, duty2, duty3) \
 		TIM8->CR1 |= TIM_CR1_UDIS; \
 		TIM8->CCR1 = duty1; \
@@ -186,12 +198,13 @@ static void timer_reinit(int f_zv) {
 
 	TIM_TimeBaseStructure.TIM_Prescaler = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_CenterAligned1;
-	TIM_TimeBaseStructure.TIM_Period = (SYSTEM_CORE_CLOCK / f_zv);
+	TIM_TimeBaseStructure.TIM_Period = (SYSTEM_CORE_CLOCK / (f_zv * FOC_CONTROL_LOOP_FREQ_DIVIDER));
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
 	TIM_TimeBaseInit(TIM8, &TIM_TimeBaseStructure);
+	TIM1->RCR = FOC_CONTROL_LOOP_FREQ_DIVIDER - 1;
 
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
@@ -635,13 +648,27 @@ bool mcpwm_foc_init_done(void) {
 	return m_init_done;
 }
 
+void mcpwm_foc_prepare_configuration(mc_configuration *configuration) {
+#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
+	uint32_t top = SYSTEM_CORE_CLOCK / ((int)configuration->foc_f_zv * FOC_CONTROL_LOOP_FREQ_DIVIDER);
+	if (TIM1->ARR != top) {
+		get_motor_now()->m_control_mode = CONTROL_MODE_NONE;
+		get_motor_now()->m_state = MC_STATE_OFF;
+		stop_pwm_hw((motor_all_state_t*)get_motor_now());
+		TIM_Cmd(TIM2, DISABLE);
+	}
+#else
+	(void)configuration;
+#endif
+}
+
 void mcpwm_foc_set_configuration(mc_configuration *configuration) {
 	get_motor_now()->m_conf = configuration;
 	foc_precalc_values((motor_all_state_t*)get_motor_now());
 
 	// Below we check if anything in the configuration changed that requires stopping the motor.
 
-	uint32_t top = SYSTEM_CORE_CLOCK / (int)configuration->foc_f_zv;
+	uint32_t top = SYSTEM_CORE_CLOCK / ((int)configuration->foc_f_zv * FOC_CONTROL_LOOP_FREQ_DIVIDER);
 	if (TIM1->ARR != top) {
 #ifdef HW_HAS_DUAL_MOTORS
 		m_motor_1.m_control_mode = CONTROL_MODE_NONE;
@@ -657,9 +684,13 @@ void mcpwm_foc_set_configuration(mc_configuration *configuration) {
 		get_motor_now()->m_control_mode = CONTROL_MODE_NONE;
 		get_motor_now()->m_state = MC_STATE_OFF;
 		stop_pwm_hw((motor_all_state_t*)get_motor_now());
+#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
+		timer_reinit((int)configuration->foc_f_zv);
+#else
 		TIMER_UPDATE_SAMP_TOP_M1(MCPWM_FOC_CURRENT_SAMP_OFFSET, top);
 #ifdef  HW_HAS_DUAL_PARALLEL
 		TIMER_UPDATE_SAMP_TOP_M2(MCPWM_FOC_CURRENT_SAMP_OFFSET, top);
+#endif
 #endif
 #endif
 	}
@@ -2861,7 +2892,12 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 	(void)p;
 	(void)flags;
 
+#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
+	static bool is_v7 = true;
+	is_v7 = !is_v7;
+#else
 	bool is_v7 = !(TIM1->CR1 & TIM_CR1_DIR);
+#endif
 
 	FOC_PROFILE_BEGIN();
 
@@ -2985,20 +3021,6 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 	FOC_PROFILE_LINE_FINE();
 
-#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
-	static int skip = 0;
-	if (++skip == FOC_CONTROL_LOOP_FREQ_DIVIDER) {
-		skip = 0;
-	} else {
-		return;
-	}
-
-	// This has to be done for the skip function to have any chance at working with the
-	// observer and control loops.
-	// TODO: Test this.
-	dt *= (float)FOC_CONTROL_LOOP_FREQ_DIVIDER;
-#endif
-
 	// Reset the watchdog
 	timeout_feed_WDT(THREAD_MCPWM);
 
@@ -3065,7 +3087,9 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 	curr2 = -(curr0 + curr1);
 #endif
 
+#ifndef SHUNT_PICK_THR
 #define SHUNT_PICK_THR 900
+#endif
 
 #ifdef HW_HAS_3_SHUNTS
 	bool full_clarke = true;
@@ -3095,7 +3119,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 		}
 	} else if (conf_now->foc_current_sample_mode == FOC_CURRENT_SAMPLE_MODE_LONGEST_ZERO) {
 #ifdef HW_HAS_PHASE_SHUNTS
-		if (is_v7) {
+		if (is_v7 && FOC_CONTROL_LOOP_FREQ_DIVIDER == 1) {
 			if (tim->CCR1 < SHUNT_PICK_THR ||
 					tim->CCR2 < SHUNT_PICK_THR ||
 					tim->CCR3 < SHUNT_PICK_THR) {
@@ -3110,9 +3134,9 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 				}
 			}
 		} else {
-			if (tim->CCR1 > (tim->ARR - SHUNT_PICK_THR) ||
-					tim->CCR2 > (tim->ARR - SHUNT_PICK_THR) ||
-					tim->CCR3 > (tim->ARR - SHUNT_PICK_THR)) {
+			if ((tim->CCR1 + SHUNT_PICK_THR) > tim->ARR ||
+					(tim->CCR2 + SHUNT_PICK_THR) > tim->ARR ||
+					(tim->CCR3 + SHUNT_PICK_THR) > tim->ARR) {
 				full_clarke = false;
 
 				if (tim->CCR1 > tim->CCR2 && tim->CCR1 > tim->CCR3) {
@@ -3125,9 +3149,9 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 			}
 		}
 #else
-		if (tim->CCR1 > (tim->ARR - SHUNT_PICK_THR) ||
-				tim->CCR2 > (tim->ARR - SHUNT_PICK_THR) ||
-				tim->CCR3 > (tim->ARR - SHUNT_PICK_THR)) {
+		if ((tim->CCR1 + SHUNT_PICK_THR) > tim->ARR ||
+				(tim->CCR2 + SHUNT_PICK_THR) > tim->ARR ||
+				(tim->CCR3 + SHUNT_PICK_THR) > tim->ARR) {
 			full_clarke = false;
 
 			if (tim->CCR1 > tim->CCR2 && tim->CCR1 > tim->CCR3) {
@@ -5094,7 +5118,7 @@ static void update_valpha_vbeta(motor_all_state_t *motor, float mod_alpha, float
 	const float mod_alpha_filter_sgn = (1.0 / 3.0) * (2.0 * SIGN(ia_filter) - SIGN(ib_filter) - SIGN(ic_filter));
 	const float mod_beta_filter_sgn = ONE_BY_SQRT3 * (SIGN(ib_filter) - SIGN(ic_filter));
 
-	const float mod_comp_fact = conf_now->foc_dt_us * 1e-6 * conf_now->foc_f_zv;
+	const float mod_comp_fact = conf_now->foc_dt_us * 1e-6 * conf_now->foc_f_zv * (float)FOC_CONTROL_LOOP_FREQ_DIVIDER;
 	const float mod_alpha_comp = mod_alpha_filter_sgn * mod_comp_fact;
 	const float mod_beta_comp = mod_beta_filter_sgn * mod_comp_fact;
 

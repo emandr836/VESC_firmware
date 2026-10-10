@@ -166,6 +166,18 @@
 #define FOC_CONTROL_LOOP_FREQ_DIVIDER	1
 #endif
 
+#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
+#if (FOC_CONTROL_LOOP_FREQ_DIVIDER % 2) != 0
+#error "FOC_CONTROL_LOOP_FREQ_DIVIDER must be 1 or even"
+#endif
+#if defined(HW_HAS_DUAL_MOTORS) || defined(HW_HAS_DUAL_PARALLEL)
+#error "FOC_CONTROL_LOOP_FREQ_DIVIDER > 1 is not supported with dual motors"
+#endif
+#ifndef HW_HAS_PHASE_SHUNTS
+#error "FOC_CONTROL_LOOP_FREQ_DIVIDER > 1 requires HW_HAS_PHASE_SHUNTS"
+#endif
+#endif
+
 // Global configuration variables
 extern bool conf_general_permanent_nrf_found;
 extern volatile backup_data g_backup;
