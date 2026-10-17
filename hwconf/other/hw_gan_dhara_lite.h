@@ -27,6 +27,7 @@
 #define HW_HAS_PHASE_SHUNTS     //Comment out this when shunts are in low side of inverter
 #define HW_HAS_PHASE_FILTERS
 #define HW_HAS_NO_CAN
+#define FOC_CONTROL_LOOP_FREQ_DIVIDER   1
 
 #define HW_ADC_INJ_CHANNELS     3
 #define HW_ADC_NBR_CONV         4
@@ -259,7 +260,7 @@
 #define MCCONF_FOC_SL_ERPM_START            4000.0  // ERPM below which only sensored commutation is used
 #define MCCONF_FOC_SL_ERPM                  5000.0  // ERPM above which only the observer is used
 #define MCCONF_FOC_CONTROL_SAMPLE_MODE      FOC_CONTROL_SAMPLE_MODE_V0_V7_INTERPOL
-#define MCCONF_FOC_CURRENT_SAMPLE_MODE      FOC_CURRENT_SAMPLE_MODE_LONGEST_ZERO
+#define MCCONF_FOC_CURRENT_SAMPLE_MODE      FOC_CURRENT_SAMPLE_MODE_ALL_SENSORS
 #define MCCONF_FOC_TEMP_COMP                false   // Motor temperature compensation
 #define MCCONF_FOC_TEMP_COMP_BASE_TEMP      25.0    // Motor temperature compensation base temperature
 #define MCCONF_FOC_CC_DECOUPLING            FOC_CC_DECOUPLING_DISABLED          // Current controller decoupling
@@ -293,6 +294,6 @@
 #define HW_LIM_DUTY_MIN             0.0, 0.1
 #define HW_LIM_DUTY_MAX             0.0, 0.99
 #define HW_LIM_TEMP_FET             -20.0, 90.0
-#define HW_LIM_FOC_CTRL_LOOP_FREQ   1000.0, 25000.0
+#define HW_LIM_FOC_CTRL_LOOP_FREQ   1000.0, 18000.0
 
 #endif /* HW_GAN_DHARA_H_ */
