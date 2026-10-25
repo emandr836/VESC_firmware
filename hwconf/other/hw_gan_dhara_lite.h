@@ -17,10 +17,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     */
 
-#ifndef HW_GAN_DHARA_H_
-#define HW_GAN_DHARA_H_
+#ifndef HW_GAN_DHARA_LITE_H_
+#define HW_GAN_DHARA_LITE_H_
 
-#define HW_NAME                 "GaN_Dhara_v1.0"
+#define HW_NAME                 "GaN_Dhara_Lite_v1.0"
 
 // HW properties
 #define HW_HAS_3_SHUNTS
@@ -296,4 +296,4 @@
 #define HW_LIM_TEMP_FET             -20.0, 90.0
 #define HW_LIM_FOC_CTRL_LOOP_FREQ   1000.0, 18000.0
 
-#endif /* HW_GAN_DHARA_H_ */
+#endif /* HW_GAN_DHARA_LITE_H_ */
