@@ -27,7 +27,6 @@
 #define HW_HAS_PHASE_SHUNTS     //Comment out this when shunts are in low side of inverter
 #define HW_HAS_PHASE_FILTERS
 //#define HW_HAS_NO_CAN
-#define FOC_CONTROL_LOOP_FREQ_DIVIDER   1
 
 #define HW_ADC_CHANNELS         12
 #define HW_ADC_INJ_CHANNELS     3
@@ -241,7 +240,7 @@
                                                     // Current control parameters
 #define MCCONF_CC_MIN_CURRENT               0.5     // Minimum allowed current
                                                     // FOC
-#define MCCONF_FOC_F_ZV                     30000.0
+#define MCCONF_FOC_F_ZV                     15000.0
 #define MCCONF_FOC_DT_US                    0.01    // Microseconds for dead time compensation
 #define MCCONF_FOC_SENSOR_MODE              FOC_SENSOR_MODE_HALL
 #define MCCONF_FOC_MOTOR_L                  156.85e-6
@@ -296,5 +295,6 @@
 #define HW_LIM_DUTY_MAX             0.0, 0.99
 #define HW_LIM_TEMP_FET             -20.0, 90.0
 #define HW_LIM_FOC_CTRL_LOOP_FREQ   1000.0, 18000.0
+#define HW_LIM_FOC_PWM_FREQ         2000.0, 108000.0
 
 #endif /* HW_GAN_DHARA_H_ */

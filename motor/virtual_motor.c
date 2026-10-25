@@ -25,6 +25,7 @@
 #include "stdio.h"
 #include "commands.h"
 #include "encoder/encoder.h"
+#include "foc_math.h"
 
 typedef struct{
 	//constant variables
@@ -127,12 +128,12 @@ void virtual_motor_set_configuration(volatile mc_configuration *conf){
 	virtual_motor.km = 1.5 * virtual_motor.pole_pairs;
 #ifdef HW_HAS_PHASE_SHUNTS
 	if (m_conf->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
-		virtual_motor.Ts = (1.0 / m_conf->foc_f_zv) ;
+		virtual_motor.Ts = (1.0 / foc_f_zv_isr((mc_configuration*)m_conf)) ;
 	} else {
-		virtual_motor.Ts = (1.0 / (m_conf->foc_f_zv / 2.0));
+		virtual_motor.Ts = (1.0 / (foc_f_zv_isr((mc_configuration*)m_conf) / 2.0));
 	}
 #else
-	virtual_motor.Ts = (1.0 / m_conf->foc_f_zv) ;
+	virtual_motor.Ts = (1.0 / foc_f_zv_isr((mc_configuration*)m_conf)) ;
 #endif
 
 	if(m_conf->foc_motor_ld_lq_diff > 0.0){

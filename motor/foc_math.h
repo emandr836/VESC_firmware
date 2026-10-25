@@ -245,6 +245,7 @@ typedef struct {
 	float p_duty_norm;
 	float p_fs;
 	float p_dt;
+	float p_f_zv;
 } motor_all_state_t;
 
 // Functions
@@ -261,5 +262,8 @@ float foc_correct_hall(float angle, float dt, motor_all_state_t *motor, int hall
 void foc_run_fw(motor_all_state_t *motor, float dt);
 void foc_hfi_adjust_angle(float ang_err, motor_all_state_t *motor, float dt);
 void foc_precalc_values(motor_all_state_t *motor);
+int foc_f_zv_divider(const mc_configuration *conf);
+int foc_f_zv_timer(const mc_configuration *conf);
+float foc_f_zv_isr(const mc_configuration *conf);
 
 #endif /* FOC_MATH_H_ */

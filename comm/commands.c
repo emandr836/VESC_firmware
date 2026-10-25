@@ -1896,7 +1896,14 @@ void commands_apply_mcconf_hw_limits(mc_configuration *mcconf) {
 
 	// This limit should always be active, as starving the threads never
 	// makes sense.
-#ifdef HW_LIM_FOC_CTRL_LOOP_FREQ
+#ifdef HW_LIM_FOC_PWM_FREQ
+	utils_truncate_number(&mcconf->foc_f_zv, HW_LIM_FOC_PWM_FREQ);
+	if (mcconf->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
+		ctrl_loop_freq = foc_f_zv_isr(mcconf);
+	} else {
+		ctrl_loop_freq = foc_f_zv_isr(mcconf) / 2.0;
+	}
+#elif defined(HW_LIM_FOC_CTRL_LOOP_FREQ)
     if (mcconf->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
     	//control loop executes twice per pwm cycle when sampling in v0 and v7
 		utils_truncate_number(&mcconf->foc_f_zv, HW_LIM_FOC_CTRL_LOOP_FREQ);
@@ -2103,7 +2110,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 
 			// Lower f_zv means less dead time distortion and higher possible current
 			// when measuring inductance on high-inductance motors.
-			mcconf->foc_f_zv = 10000.0;
+			mcconf->foc_f_zv = 10000.0 / FOC_F_ZV_SCALE;
 
 			mc_interface_set_configuration(mcconf);
 
@@ -2215,7 +2222,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 				float current = buffer_get_float32(data, 1e3, &ind);
 
 				mcconf->motor_type = MOTOR_TYPE_FOC;
-				mcconf->foc_f_zv = 10000.0;
+				mcconf->foc_f_zv = 10000.0 / FOC_F_ZV_SCALE;
 				mcconf->foc_current_kp = 0.01;
 				mcconf->foc_current_ki = 10.0;
 				mc_interface_set_configuration(mcconf);

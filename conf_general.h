@@ -166,16 +166,23 @@
 #define FOC_CONTROL_LOOP_FREQ_DIVIDER	1
 #endif
 
-#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
-#if (FOC_CONTROL_LOOP_FREQ_DIVIDER % 2) != 0
-#error "FOC_CONTROL_LOOP_FREQ_DIVIDER must be 1 or even"
+#if FOC_CONTROL_LOOP_FREQ_DIVIDER != 1
+#error "FOC_CONTROL_LOOP_FREQ_DIVIDER is replaced by HW_LIM_FOC_PWM_FREQ"
 #endif
+
+#ifdef HW_LIM_FOC_PWM_FREQ
 #if defined(HW_HAS_DUAL_MOTORS) || defined(HW_HAS_DUAL_PARALLEL)
-#error "FOC_CONTROL_LOOP_FREQ_DIVIDER > 1 is not supported with dual motors"
+#error "HW_LIM_FOC_PWM_FREQ is not supported with dual motors"
 #endif
 #ifndef HW_HAS_PHASE_SHUNTS
-#error "FOC_CONTROL_LOOP_FREQ_DIVIDER > 1 requires HW_HAS_PHASE_SHUNTS"
+#error "HW_LIM_FOC_PWM_FREQ requires HW_HAS_PHASE_SHUNTS"
 #endif
+#ifndef HW_LIM_FOC_CTRL_LOOP_FREQ
+#error "HW_LIM_FOC_PWM_FREQ requires HW_LIM_FOC_CTRL_LOOP_FREQ"
+#endif
+#define FOC_F_ZV_SCALE	2.0
+#else
+#define FOC_F_ZV_SCALE	1.0
 #endif
 
 // Global configuration variables

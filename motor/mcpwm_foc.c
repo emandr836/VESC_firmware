@@ -50,6 +50,7 @@ static volatile motor_all_state_t m_motor_1;
 static volatile motor_all_state_t m_motor_2;
 #endif
 static volatile int m_isr_motor = 0;
+static volatile int m_pwm_div = 1;
 
 // Private functions
 static void control_current(motor_all_state_t *motor, float dt);
@@ -75,11 +76,16 @@ static THD_FUNCTION(pid_thread, arg);
 static volatile bool pid_thd_stop;
 
 // Macros
-#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
+#ifdef HW_LIM_FOC_PWM_FREQ
 #define TIMER_UPDATE_GUARD_TICKS	32
 #define TIMER_UPDATE_BEGIN_M1() \
-		while ((TIM1->ARR * FOC_CONTROL_LOOP_FREQ_DIVIDER / 2 - TIM2->CNT) <= TIMER_UPDATE_GUARD_TICKS) {}
-#define TIMER_UPDATE_END_M1()
+		if (m_pwm_div > 1) { \
+			while ((TIM1->ARR * m_pwm_div / 2 - TIM2->CNT) <= TIMER_UPDATE_GUARD_TICKS) {} \
+		} else { \
+			TIM1->CR1 |= TIM_CR1_UDIS; \
+		}
+#define TIMER_UPDATE_END_M1() \
+		TIM1->CR1 &= ~TIM_CR1_UDIS;
 #else
 #define TIMER_UPDATE_BEGIN_M1() \
 		TIM1->CR1 |= TIM_CR1_UDIS;
@@ -178,7 +184,7 @@ static void update_hfi_samples(foc_hfi_samples samples, volatile motor_all_state
 #pragma GCC push_options
 #pragma GCC optimize ("Os")
 
-static void timer_reinit(int f_zv) {
+static void timer_reinit(int f_zv, int div) {
 	utils_sys_lock_cnt();
 
 	TIM_DeInit(TIM1);
@@ -198,13 +204,14 @@ static void timer_reinit(int f_zv) {
 
 	TIM_TimeBaseStructure.TIM_Prescaler = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_CenterAligned1;
-	TIM_TimeBaseStructure.TIM_Period = (SYSTEM_CORE_CLOCK / (f_zv * FOC_CONTROL_LOOP_FREQ_DIVIDER));
+	TIM_TimeBaseStructure.TIM_Period = (SYSTEM_CORE_CLOCK / f_zv);
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
 	TIM_TimeBaseInit(TIM8, &TIM_TimeBaseStructure);
-	TIM1->RCR = FOC_CONTROL_LOOP_FREQ_DIVIDER - 1;
+	TIM1->RCR = div - 1;
+	m_pwm_div = div;
 
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
@@ -483,7 +490,7 @@ void mcpwm_foc_init(mc_configuration *conf_m1, mc_configuration *conf_m2) {
 	ADC_Cmd(ADC2, ENABLE);
 	ADC_Cmd(ADC3, ENABLE);
 
-	timer_reinit((int)m_motor_1.m_conf->foc_f_zv);
+	timer_reinit(foc_f_zv_timer(m_motor_1.m_conf), foc_f_zv_divider(m_motor_1.m_conf));
 
 	stop_pwm_hw((motor_all_state_t*)&m_motor_1);
 #ifdef HW_HAS_DUAL_MOTORS
@@ -649,9 +656,10 @@ bool mcpwm_foc_init_done(void) {
 }
 
 void mcpwm_foc_prepare_configuration(mc_configuration *configuration) {
-#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
-	uint32_t top = SYSTEM_CORE_CLOCK / ((int)configuration->foc_f_zv * FOC_CONTROL_LOOP_FREQ_DIVIDER);
-	if (TIM1->ARR != top) {
+#ifdef HW_LIM_FOC_PWM_FREQ
+	int div = foc_f_zv_divider(configuration);
+	uint32_t top = SYSTEM_CORE_CLOCK / foc_f_zv_timer(configuration);
+	if ((m_pwm_div > 1 || div > 1) && (TIM1->ARR != top || m_pwm_div != div)) {
 		get_motor_now()->m_control_mode = CONTROL_MODE_NONE;
 		get_motor_now()->m_state = MC_STATE_OFF;
 		stop_pwm_hw((motor_all_state_t*)get_motor_now());
@@ -668,8 +676,9 @@ void mcpwm_foc_set_configuration(mc_configuration *configuration) {
 
 	// Below we check if anything in the configuration changed that requires stopping the motor.
 
-	uint32_t top = SYSTEM_CORE_CLOCK / ((int)configuration->foc_f_zv * FOC_CONTROL_LOOP_FREQ_DIVIDER);
-	if (TIM1->ARR != top) {
+	int div = foc_f_zv_divider(configuration);
+	uint32_t top = SYSTEM_CORE_CLOCK / foc_f_zv_timer(configuration);
+	if (TIM1->ARR != top || m_pwm_div != div) {
 #ifdef HW_HAS_DUAL_MOTORS
 		m_motor_1.m_control_mode = CONTROL_MODE_NONE;
 		m_motor_1.m_state = MC_STATE_OFF;
@@ -679,19 +688,19 @@ void mcpwm_foc_set_configuration(mc_configuration *configuration) {
 		m_motor_2.m_state = MC_STATE_OFF;
 		stop_pwm_hw((motor_all_state_t*)&m_motor_2);
 
-		timer_reinit((int)configuration->foc_f_zv);
+		timer_reinit(foc_f_zv_timer(configuration), div);
 #else
 		get_motor_now()->m_control_mode = CONTROL_MODE_NONE;
 		get_motor_now()->m_state = MC_STATE_OFF;
 		stop_pwm_hw((motor_all_state_t*)get_motor_now());
-#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
-		timer_reinit((int)configuration->foc_f_zv);
-#else
-		TIMER_UPDATE_SAMP_TOP_M1(MCPWM_FOC_CURRENT_SAMP_OFFSET, top);
+		if (m_pwm_div > 1 || div > 1) {
+			timer_reinit(foc_f_zv_timer(configuration), div);
+		} else {
+			TIMER_UPDATE_SAMP_TOP_M1(MCPWM_FOC_CURRENT_SAMP_OFFSET, top);
 #ifdef  HW_HAS_DUAL_PARALLEL
-		TIMER_UPDATE_SAMP_TOP_M2(MCPWM_FOC_CURRENT_SAMP_OFFSET, top);
+			TIMER_UPDATE_SAMP_TOP_M2(MCPWM_FOC_CURRENT_SAMP_OFFSET, top);
 #endif
-#endif
+		}
 #endif
 	}
 
@@ -1102,12 +1111,12 @@ float mcpwm_foc_get_switching_frequency_now(void) {
 float mcpwm_foc_get_sampling_frequency_now(void) {
 #ifdef HW_HAS_PHASE_SHUNTS
 	if (get_motor_now()->m_conf->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
-		return get_motor_now()->m_conf->foc_f_zv;
+		return foc_f_zv_isr(get_motor_now()->m_conf);
 	} else {
-		return get_motor_now()->m_conf->foc_f_zv * 0.5;
+		return foc_f_zv_isr(get_motor_now()->m_conf) * 0.5;
 	}
 #else
-	return get_motor_now()->m_conf->foc_f_zv * 0.5;
+	return foc_f_zv_isr(get_motor_now()->m_conf) * 0.5;
 #endif
 }
 
@@ -1117,12 +1126,12 @@ float mcpwm_foc_get_sampling_frequency_now(void) {
 float mcpwm_foc_get_ts(void) {
 #ifdef HW_HAS_PHASE_SHUNTS
 	if (get_motor_now()->m_conf->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
-		return (1.0 / get_motor_now()->m_conf->foc_f_zv) ;
+		return (1.0 / foc_f_zv_isr(get_motor_now()->m_conf)) ;
 	} else {
-		return (1.0 / (get_motor_now()->m_conf->foc_f_zv / 2.0));
+		return (1.0 / (foc_f_zv_isr(get_motor_now()->m_conf) / 2.0));
 	}
 #else
-	return (1.0 / get_motor_now()->m_conf->foc_f_zv) ;
+	return (1.0 / foc_f_zv_isr(get_motor_now()->m_conf)) ;
 #endif
 }
 
@@ -1965,8 +1974,8 @@ int mcpwm_foc_measure_inductance(float duty, int samples, float *curr, float *ld
 	motor->m_conf->foc_hfi_samples = HFI_SAMPLES_32;
 	motor->m_conf->foc_current_sample_mode = FOC_CURRENT_SAMPLE_MODE_LONGEST_ZERO;
 
-	if (motor->m_conf->foc_f_zv > 30.0e3) {
-		motor->m_conf->foc_f_zv = 30.0e3;
+	if (motor->m_conf->foc_f_zv > 30.0e3 / FOC_F_ZV_SCALE) {
+		motor->m_conf->foc_f_zv = 30.0e3 / FOC_F_ZV_SCALE;
 	}
 
 	mcpwm_foc_set_configuration(motor->m_conf);
@@ -2172,9 +2181,9 @@ bool mcpwm_foc_beep(float freq, float time, float voltage) {
 		freq /= 8.0;
 	}
 
-	motor->m_conf->foc_f_zv = freq * 8.0;
+	motor->m_conf->foc_f_zv = freq * 8.0 / FOC_F_ZV_SCALE;
 
-	utils_truncate_number(&motor->m_conf->foc_f_zv, 3.0e3, 30.0e3);
+	utils_truncate_number(&motor->m_conf->foc_f_zv, 3.0e3 / FOC_F_ZV_SCALE, 30.0e3 / FOC_F_ZV_SCALE);
 
 	mcpwm_foc_set_configuration(motor->m_conf);
 
@@ -2219,7 +2228,7 @@ bool mcpwm_foc_play_tone(int channel, float freq, float voltage) {
 
 	volatile motor_all_state_t *motor = get_motor_now();
 
-	if (freq <= 0.1 || freq > motor->m_conf->foc_f_zv * 0.5) {
+	if (freq <= 0.1 || freq > foc_f_zv_isr(motor->m_conf) * 0.5) {
 		return false;
 	}
 
@@ -2892,9 +2901,10 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 	(void)p;
 	(void)flags;
 
-#if FOC_CONTROL_LOOP_FREQ_DIVIDER > 1
-	static bool is_v7 = true;
-	is_v7 = !is_v7;
+#ifdef HW_LIM_FOC_PWM_FREQ
+	static bool v7_toggle = true;
+	v7_toggle = !v7_toggle;
+	bool is_v7 = m_pwm_div > 1 ? v7_toggle : !(TIM1->CR1 & TIM_CR1_DIR);
 #else
 	bool is_v7 = !(TIM1->CR1 & TIM_CR1_DIR);
 #endif
@@ -3119,7 +3129,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 		}
 	} else if (conf_now->foc_current_sample_mode == FOC_CURRENT_SAMPLE_MODE_LONGEST_ZERO) {
 #ifdef HW_HAS_PHASE_SHUNTS
-		if (is_v7 && FOC_CONTROL_LOOP_FREQ_DIVIDER == 1) {
+		if (is_v7 && m_pwm_div == 1) {
 			if (tim->CCR1 < SHUNT_PICK_THR ||
 					tim->CCR2 < SHUNT_PICK_THR ||
 					tim->CCR3 < SHUNT_PICK_THR) {
@@ -4279,9 +4289,9 @@ static void hfi_update(volatile motor_all_state_t *motor, float dt) {
 				// we should lag 1/2 HFI buffer behind in phase. Compensate for that here.
 				float dt_sw;
 				if (motor->m_conf->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
-					dt_sw = 1.0 / motor->m_conf->foc_f_zv;
+					dt_sw = 1.0 / motor->p_f_zv;
 				} else {
-					dt_sw = 1.0 / (motor->m_conf->foc_f_zv / 2.0);
+					dt_sw = 1.0 / (motor->p_f_zv / 2.0);
 				}
 				angle_bin_2 += motor->m_pll_speed * ((float)motor->m_hfi.samples / 2.0) * dt_sw;
 
@@ -4847,7 +4857,7 @@ static void control_current(motor_all_state_t *motor, float dt) {
 					}
 #endif
 					foc_hfi_adjust_angle(
-							(di * conf_now->foc_f_zv) / (hfi_voltage * motor->p_inv_ld_lq),
+							(di * motor->p_f_zv) / (hfi_voltage * motor->p_inv_ld_lq),
 							motor, hfi_dt
 					);
 				}
@@ -4901,7 +4911,7 @@ static void control_current(motor_all_state_t *motor, float dt) {
 					}
 #endif
 					foc_hfi_adjust_angle(
-							motor->m_hfi.sign_last_sample * ((conf_now->foc_f_zv * di) /
+							motor->m_hfi.sign_last_sample * ((motor->p_f_zv * di) /
 									hfi_voltage - motor->p_v2_v3_inv_avg_half) / motor->p_inv_ld_lq,
 							motor, hfi_dt
 					);
@@ -4953,7 +4963,7 @@ static void control_current(motor_all_state_t *motor, float dt) {
 				motor->m_hfi.buffer_current[motor->m_hfi.ind] = di;
 
 				if (di > 0.01) {
-					motor->m_hfi.buffer[motor->m_hfi.ind] = (conf_now->foc_f_zv * di) / hfi_voltage; //Changed to inverse of inductance. This is what is needed for the FFT, not the inductance itself. This is because the measurement has a dc offset, which will leak into other bins when the inverse is takes first.
+					motor->m_hfi.buffer[motor->m_hfi.ind] = (motor->p_f_zv * di) / hfi_voltage; //Changed to inverse of inductance. This is what is needed for the FFT, not the inductance itself. This is because the measurement has a dc offset, which will leak into other bins when the inverse is takes first.
 				}
 
 				motor->m_hfi.ind++;
@@ -5118,7 +5128,7 @@ static void update_valpha_vbeta(motor_all_state_t *motor, float mod_alpha, float
 	const float mod_alpha_filter_sgn = (1.0 / 3.0) * (2.0 * SIGN(ia_filter) - SIGN(ib_filter) - SIGN(ic_filter));
 	const float mod_beta_filter_sgn = ONE_BY_SQRT3 * (SIGN(ib_filter) - SIGN(ic_filter));
 
-	const float mod_comp_fact = conf_now->foc_dt_us * 1e-6 * conf_now->foc_f_zv * (float)FOC_CONTROL_LOOP_FREQ_DIVIDER;
+	const float mod_comp_fact = conf_now->foc_dt_us * 1e-6 * conf_now->foc_f_zv * FOC_F_ZV_SCALE;
 	const float mod_alpha_comp = mod_alpha_filter_sgn * mod_comp_fact;
 	const float mod_beta_comp = mod_beta_filter_sgn * mod_comp_fact;
 

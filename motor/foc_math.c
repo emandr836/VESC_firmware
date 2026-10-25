@@ -20,6 +20,7 @@
 #include "foc_math.h"
 #include "utils_math.h"
 #include "hw.h"
+#include "conf_general.h"
 #include <math.h>
 
 // See http://cas.ensmp.fr/~praly/Telechargement/Journaux/2010-IEEE_TPEL-Lee-Hong-Nam-Ortega-Praly-Astolfi.pdf
@@ -781,14 +782,49 @@ void foc_precalc_values(motor_all_state_t *motor) {
 	motor->m_observer_state.lambda_est = conf_now->foc_motor_flux_linkage;
 	motor->p_duty_norm = TWO_BY_SQRT3 / conf_now->foc_overmod_factor;
 
+	motor->p_f_zv = foc_f_zv_isr(conf_now);
+
 #ifdef HW_HAS_PHASE_SHUNTS
 	if (conf_now->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
-		motor->p_fs = conf_now->foc_f_zv;
+		motor->p_fs = motor->p_f_zv;
 	} else {
-		motor->p_fs = conf_now->foc_f_zv * 0.5;
+		motor->p_fs = motor->p_f_zv * 0.5;
 	}
 #else
-	motor->p_fs = conf_now->foc_f_zv * 0.5;
+	motor->p_fs = motor->p_f_zv * 0.5;
 #endif
 	motor->p_dt = 1.0 / motor->p_fs;
+}
+
+#ifdef HW_LIM_FOC_PWM_FREQ
+inline static float hw_lim_upper(float l, float h) {(void)l; return h;}
+#endif
+
+int foc_f_zv_divider(const mc_configuration *conf) {
+#ifdef HW_LIM_FOC_PWM_FREQ
+	float f_ctrl = conf->foc_f_zv;
+	if (conf->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7) {
+		f_ctrl *= 2.0;
+	}
+
+	int div = (int)ceilf(f_ctrl / hw_lim_upper(HW_LIM_FOC_CTRL_LOOP_FREQ));
+	if (div < 1) {
+		div = 1;
+	} else if (div > 1 && (div % 2) != 0) {
+		div++;
+	}
+
+	return div;
+#else
+	(void)conf;
+	return 1;
+#endif
+}
+
+int foc_f_zv_timer(const mc_configuration *conf) {
+	return (int)(conf->foc_f_zv * FOC_F_ZV_SCALE);
+}
+
+float foc_f_zv_isr(const mc_configuration *conf) {
+	return conf->foc_f_zv * FOC_F_ZV_SCALE / (float)foc_f_zv_divider(conf);
 }
