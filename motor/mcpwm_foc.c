@@ -2561,6 +2561,12 @@ int mcpwm_foc_dc_cal(bool cal_undriven) {
 	float voltage_sum[3] = {0.0, 0.0, 0.0};
 
 	m_dccal_running = true;
+	full_brake_hw((motor_all_state_t*)&m_motor_1);
+#ifdef HW_HAS_DUAL_MOTORS
+	full_brake_hw((motor_all_state_t*)&m_motor_2);
+#endif
+	timer_sleep(20e-6);
+
 	TIMER_UPDATE_DUTY_M1(TIM1->ARR / 2, TIM1->ARR / 2, TIM1->ARR / 2);
 
 	// Start PWM on phase 1
