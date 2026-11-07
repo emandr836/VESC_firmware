@@ -44,6 +44,7 @@
 
 // Private variables
 static volatile bool m_dccal_done = false;
+static volatile bool m_dccal_running = false;
 static volatile bool m_init_done = false;
 static volatile motor_all_state_t m_motor_1;
 #ifdef HW_HAS_DUAL_MOTORS
@@ -2559,6 +2560,7 @@ int mcpwm_foc_dc_cal(bool cal_undriven) {
 	float current_sum[3] = {0.0, 0.0, 0.0};
 	float voltage_sum[3] = {0.0, 0.0, 0.0};
 
+	m_dccal_running = true;
 	TIMER_UPDATE_DUTY_M1(TIM1->ARR / 2, TIM1->ARR / 2, TIM1->ARR / 2);
 
 	// Start PWM on phase 1
@@ -2732,6 +2734,8 @@ int mcpwm_foc_dc_cal(bool cal_undriven) {
 
 	// TODO: Make sure that offsets are no more than e.g. 5%, as larger values indicate hardware problems.
 
+	m_dccal_running = false;
+
 	// Enable timeout
 	timeout_configure(tout, tout_c, tout_ksw);
 	mc_interface_unlock();
@@ -2768,6 +2772,7 @@ int mcpwm_foc_dc_cal(bool cal_undriven) {
 	float current_sum[3] = {0.0, 0.0, 0.0};
 	float voltage_sum[3] = {0.0, 0.0, 0.0};
 
+	m_dccal_running = true;
 	TIMER_UPDATE_DUTY_M1(TIM1->ARR / 2, TIM1->ARR / 2, TIM1->ARR / 2);
 
 	stop_pwm_hw((motor_all_state_t*)&m_motor_1);
@@ -2843,6 +2848,8 @@ int mcpwm_foc_dc_cal(bool cal_undriven) {
 	}
 
 	// TODO: Make sure that offsets are no more than e.g. 5%, as larger values indicate hardware problems.
+
+	m_dccal_running = false;
 
 	// Enable timeout
 	timeout_configure(tout, tout_c, tout_ksw);
@@ -2991,7 +2998,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 	float fs = motor_now->p_fs;
 	float dt = motor_now->p_dt;
 
-	if (conf_other->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7_INTERPOL && !skip_interpolation) {
+	if (conf_other->foc_control_sample_mode == FOC_CONTROL_SAMPLE_MODE_V0_V7_INTERPOL && !m_dccal_running && !skip_interpolation) {
 		float interpolated_phase = motor_other->m_motor_state.phase + motor_other->m_speed_est_fast * dt * 0.5;
 		utils_norm_angle_rad(&interpolated_phase);
 
