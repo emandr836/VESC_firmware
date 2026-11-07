@@ -288,7 +288,7 @@
 #define HW_LIM_CURRENT              -25.0, 25.0     // Phase amps
 #define HW_LIM_CURRENT_ABS          -40.0, 40.0     // Absolute phase amps
 #define HW_LIM_CURRENT_IN           -25.0, 25.0     // Battery amps
-#define HW_LIM_VIN                  6.0, 70.0
+#define HW_LIM_VIN                  8.0, 70.0
 #define HW_LIM_ERPM                 -100e3, 100e3
 #define HW_LIM_DUTY_MIN             0.0, 0.1
 #define HW_LIM_DUTY_MAX             0.0, 0.99
