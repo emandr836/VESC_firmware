@@ -50,6 +50,25 @@ void lsm6ds3_stop(void);
 #define LSM6DS3_ACC_GYRO_ADDR_A  				0X6A
 #define LSM6DS3_ACC_GYRO_ADDR_B 				0X6B
 
+#define LSM6DSV_WHO_AM_I_VAL					0x70
+#define LSM6DSV_CTRL1							0x10
+#define LSM6DSV_CTRL2							0x11
+#define LSM6DSV_CTRL3							0x12
+#define LSM6DSV_CTRL6							0x15
+#define LSM6DSV_CTRL7							0x16
+#define LSM6DSV_CTRL8							0x17
+#define LSM6DSV_CTRL9							0x18
+#define LSM6DSV_CTRL3_BDU						0x40
+#define LSM6DSV_CTRL3_IF_INC					0x04
+#define LSM6DSV_CTRL6_FS_G_2000DPS				0x04
+#define LSM6DSV_CTRL6_LPF1_G_BW_SHIFT			4
+#define LSM6DSV_CTRL7_LPF1_G_EN					0x01
+#define LSM6DSV_CTRL8_FS_XL_16G					0x03
+#define LSM6DSV_CTRL8_LPF2_XL_BW_SHIFT			5
+#define LSM6DSV_CTRL9_LPF2_XL_EN				0x08
+#define LSM6DSV_FILT_BW_LIGHT					0x02
+#define LSM6DSV_FILT_BW_STRONG					0x04
+
 /************** Device Register  *******************/
 #define LSM6DS3_ACC_GYRO_TEST_PAGE  			0X00
 #define LSM6DS3_ACC_GYRO_RAM_ACCESS  			0X01

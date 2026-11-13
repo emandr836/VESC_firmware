@@ -47,7 +47,57 @@ static THD_FUNCTION(lsm6ds3_thread, arg);
 static void(*read_callback)(float *accel, float *gyro, float *mag) = 0;
 
 static bool is_valid_who_am_i(uint8_t id) {
-	return id == 0x69 || id == 0x6A || id == 0x6C;
+	return id == 0x69 || id == 0x6A || id == 0x6C || id == LSM6DSV_WHO_AM_I_VAL;
+}
+
+static bool lsm6dsv_configure(void) {
+	static const float odr_hz[] = {1.875, 7.5, 15.0, 30.0, 60.0, 120.0,
+			240.0, 480.0, 960.0, 1920.0, 3840.0, 7680.0};
+	const int odr_num = sizeof(odr_hz) / sizeof(odr_hz[0]);
+
+	uint8_t odr = odr_num;
+	for (int i = 0;i < odr_num;i++) {
+		if (odr_hz[i] >= (float)rate_hz) {
+			odr = i + 1;
+			break;
+		}
+	}
+
+	uint8_t ctrl6 = LSM6DSV_CTRL6_FS_G_2000DPS;
+	uint8_t ctrl7 = 0;
+	uint8_t ctrl8 = LSM6DSV_CTRL8_FS_XL_16G;
+	uint8_t ctrl9 = 0;
+
+	if (filter != IMU_FILTER_LOW) {
+		uint8_t bw = filter == IMU_FILTER_HIGH ? LSM6DSV_FILT_BW_STRONG : LSM6DSV_FILT_BW_LIGHT;
+		ctrl6 |= bw << LSM6DSV_CTRL6_LPF1_G_BW_SHIFT;
+		ctrl7 |= LSM6DSV_CTRL7_LPF1_G_EN;
+		ctrl8 |= bw << LSM6DSV_CTRL8_LPF2_XL_BW_SHIFT;
+		ctrl9 |= LSM6DSV_CTRL9_LPF2_XL_EN;
+	}
+
+	if (!write_reg(LSM6DSV_CTRL3, LSM6DSV_CTRL3_BDU | LSM6DSV_CTRL3_IF_INC) ||
+			!write_reg(LSM6DSV_CTRL6, ctrl6) ||
+			!write_reg(LSM6DSV_CTRL7, ctrl7) ||
+			!write_reg(LSM6DSV_CTRL8, ctrl8) ||
+			!write_reg(LSM6DSV_CTRL9, ctrl9) ||
+			!write_reg(LSM6DSV_CTRL1, odr) ||
+			!write_reg(LSM6DSV_CTRL2, odr)) {
+		commands_printf("LSM6DSV Config FAILED");
+		return false;
+	}
+
+	return true;
+}
+
+static void start_reading(stkalign_t *work_area, size_t work_area_size) {
+	terminal_register_command_callback(
+			"lsm_read_reg",
+			"Read register of the LSM6DS3",
+			"[reg]",
+			terminal_read_reg);
+
+	lsm6ds3_thread_ref = chThdCreateStatic(work_area, work_area_size, NORMALPRIO, lsm6ds3_thread, NULL);
 }
 
 static bool read_who_am_i(uint8_t *id) {
@@ -102,6 +152,13 @@ void lsm6ds3_init(i2c_bb_state *i2c_state, spi_bb_state *spi_state, SPIDriver *s
 			commands_printf("LSM6DS3 Address B failed (rx: %d)", rxb[0]);
 			return;
 		}
+	}
+
+	if (rxb[0] == LSM6DSV_WHO_AM_I_VAL) {
+		if (lsm6dsv_configure()) {
+			start_reading(work_area, work_area_size);
+		}
+		return;
 	}
 
 	bool is_trc = false;
@@ -235,13 +292,7 @@ void lsm6ds3_init(i2c_bb_state *i2c_state, spi_bb_state *spi_state, SPIDriver *s
 		return;
 	}
 
-	terminal_register_command_callback(
-			"lsm_read_reg",
-			"Read register of the LSM6DS3",
-			"[reg]",
-			terminal_read_reg);
-
-	lsm6ds3_thread_ref = chThdCreateStatic(work_area, work_area_size, NORMALPRIO, lsm6ds3_thread, NULL);
+	start_reading(work_area, work_area_size);
 }
 
 void lsm6ds3_stop(void) {
