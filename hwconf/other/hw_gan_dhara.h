@@ -53,10 +53,13 @@
 #define V_REG                   3.3
 #endif
 #ifndef VIN_R1
-#define VIN_R1                  220000.0
+#define VIN_R1                  220008.0
 #endif
 #ifndef VIN_R2
 #define VIN_R2                  10000.0
+#endif
+#ifndef VIN_OFFSET
+#define VIN_OFFSET              0.123
 #endif
 #ifndef CURRENT_AMP_GAIN
 #define CURRENT_AMP_GAIN        1.0
@@ -66,7 +69,22 @@
 #endif
 
 // Input voltage
-#define GET_INPUT_VOLTAGE()     ((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2))
+#define GET_INPUT_VOLTAGE()     ((V_REG / 4095.0) * (float)ADC_Value[ADC_IND_VIN_SENS] * ((VIN_R1 + VIN_R2) / VIN_R2) + VIN_OFFSET)
+
+// Input current
+#define HW_INV_LOSS_C0          0.497988
+#define HW_INV_LOSS_C1          0.0185578
+#define HW_INV_LOSS_C2          0.297461
+#define HW_INV_LOSS_C3          0.0121859
+#define HW_INV_LOSS_C4          0.0166734
+#define HW_INV_LOSS_C5          -0.000618513
+#define HW_HAS_INPUT_CURRENT_SENSOR
+#define GET_INPUT_CURRENT()     hw_get_input_current(state_m->mod_alpha_measured * state_m->i_alpha + \
+                                                     state_m->mod_beta_measured * state_m->i_beta, \
+                                                     state_m->v_bus, state_m->id, state_m->iq, conf_now->foc_f_zv)
+#define GET_INPUT_CURRENT_OFFSET()
+#define MEASURE_INPUT_CURRENT_OFFSET()
+float hw_get_input_current(float i_bus_est, float v_bus, float id, float iq, float f_sw);
 
 // NTC Termistors
 #define NTC_RES(adc_val)        ((4095.0 * 10000.0) / adc_val - 10000.0)

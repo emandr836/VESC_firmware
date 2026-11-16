@@ -183,3 +183,17 @@ void hw_try_restore_i2c(void) {
 		i2cReleaseBus(&HW_I2C_DEV);
 	}
 }
+
+float hw_get_input_current(float i_bus_est, float v_bus, float id, float iq, float f_sw) {
+	if (v_bus < 1.0) {
+		return i_bus_est;
+	}
+
+	const float i_rms = sqrtf(SQ(id) + SQ(iq)) * 0.70710678;
+	const float f_mhz = f_sw * 1e-6;
+	const float p_add = HW_INV_LOSS_C0 + HW_INV_LOSS_C1 * v_bus +
+			f_mhz * v_bus * (HW_INV_LOSS_C2 + HW_INV_LOSS_C3 * v_bus + HW_INV_LOSS_C4 * i_rms) +
+			HW_INV_LOSS_C5 * SQ(i_rms);
+
+	return i_bus_est + p_add / v_bus;
+}
