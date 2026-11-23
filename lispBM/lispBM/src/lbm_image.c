@@ -1132,11 +1132,21 @@ void lbm_image_create(char *version_str) {
   }
 }
 
+static lbm_uint after_symbol_name(const char *name, lbm_uint ix) {
+  uintptr_t start = (uintptr_t)image_address;
+  uintptr_t a = (uintptr_t)name;
+  if (a >= start && a < start + image_size * sizeof(uint32_t)) {
+    lbm_uint end = (lbm_uint)((a - start + strlen(name) + 1 + sizeof(lbm_uint) - 1) / sizeof(lbm_uint));
+    if (end > ix) ix = end;
+  }
+  return ix;
+}
 
 bool lbm_image_boot(void) {
   //process image
   int32_t pos = (int32_t)image_size-1;
   last_const_heap_ix = 0;
+  lbm_uint symbol_names_end = 0;
 
   sharing_table st;
   lbm_uint *target_map = NULL;   // Target addresses for shared/refs from the flat values.
@@ -1273,6 +1283,7 @@ bool lbm_image_boot(void) {
         lbm_symrepr_set_next_id(sym_id + 1);
       }
       lbm_symrepr_set_symlist((lbm_uint*)(image_address + entry_pos));
+      symbol_names_end = after_symbol_name((const char*)p[0], symbol_names_end);
       pos -= 6;
 #else
       int32_t entry_pos = pos - 2;
@@ -1283,6 +1294,7 @@ bool lbm_image_boot(void) {
         lbm_symrepr_set_next_id(sym_id + 1);
       }
       lbm_symrepr_set_symlist((lbm_uint*)(image_address + entry_pos));
+      symbol_names_end = after_symbol_name((const char*)p[0], symbol_names_end);
       pos -= 3;
 #endif
     } break;
@@ -1372,6 +1384,9 @@ bool lbm_image_boot(void) {
     }
   }
  done_loading_image:
+  if (symbol_names_end > image_const_heap.next) {
+    image_const_heap.next = symbol_names_end;
+  }
   if (target_map) lbm_free(target_map);
   return true;
 }
